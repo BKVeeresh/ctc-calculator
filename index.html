@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTC to In‑Hand Salary Calculator</title>
+  <!--
+    This simple static web page helps convert an annual CTC (Cost to Company)
+    into an approximate in‑hand salary. It assumes standard salary
+    components used in many Indian organisations:
+
+    • The cost to company includes employer contributions to the
+      Employees’ Provident Fund (PF) and a gratuity provision equal to
+      4.81 % of the basic salary【211482346467598†L220-L247】.
+    • The net (take‑home) salary is derived from the gross salary by
+      subtracting statutory deductions such as income tax, professional
+      tax and the employee PF contribution【577992474538289†L196-L208】.
+    • Tax slabs follow the New Tax Regime for FY 2025‑26 (AY 2026‑27)
+      announced in the Union Budget 2025: up to ₹4 lakh – nil; ₹4–8 lakh – 5 %;
+      ₹8–12 lakh – 10 %; ₹12–16 lakh – 15 %; ₹16–20 lakh – 20 %;
+      ₹20–24 lakh – 25 %; above ₹24 lakh – 30 %【499099945413014†L259-L295】.
+
+    The calculator also applies the ₹75 000 standard deduction and a
+    rebate of up to ₹60 000 for taxable incomes up to ₹12 lakh
+    (effectively making such incomes tax free)【499099945413014†L259-L299】.
+  -->
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f9fafb;
+      color: #111827;
+    }
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-weight: 600;
+    }
+    input[type="number"], select {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.25rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      box-sizing: border-box;
+    }
+    button {
+      margin-top: 1.5rem;
+      background-color: #2563eb;
+      color: white;
+      padding: 0.625rem 1.25rem;
+      border: none;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      font-size: 1rem;
+      width: 100%;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+    #results {
+      margin-top: 2rem;
+      background-color: #ffffff;
+      border: 1px solid #e5e7eb;
+      padding: 1rem;
+      border-radius: 0.375rem;
+    }
+    #results p {
+      margin: 0.5rem 0;
+    }
+    #results h2 {
+      margin-top: 0;
+      font-size: 1.5rem;
+    }
+    .note {
+      margin-top: 1.5rem;
+      font-size: 0.875rem;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>CTC to In‑Hand Salary Calculator</h1>
+    <label for="ctc">Annual CTC (₹)</label>
+    <input id="ctc" type="number" min="0" step="0.01" placeholder="Enter annual CTC in INR">
+
+    <label for="basicPercent">Basic Salary Percentage of Gross</label>
+    <select id="basicPercent">
+      <option value="0.4">40 %</option>
+      <option value="0.5" selected>50 %</option>
+    </select>
+
+    <label for="city">City Type (for HRA calculation)</label>
+    <select id="city">
+      <option value="metro">Metro (Delhi, Mumbai, Kolkata or Chennai)</option>
+      <option value="nonmetro">Non‑metro</option>
+    </select>
+
+    <button id="calculate">Calculate</button>
+
+    <div id="results"></div>
+
+    <p class="note">
+      The calculations use standard assumptions: employer PF contribution (12 %) and a gratuity provision (4.81 %) are part of your CTC【211482346467598†L220-L247】. Net salary is computed by subtracting income tax, professional tax and employee PF from the gross salary【577992474538289†L196-L208】. Tax slabs are based on the New Tax Regime for FY 2025‑26【499099945413014†L259-L295】. Actual figures may vary according to your specific salary structure and applicable deductions.
+    </p>
+  </div>
+
+  <script>
+    function formatNumber(value) {
+      return value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function calculate() {
+      const ctcInput = document.getElementById('ctc').value;
+      const basicPercent = parseFloat(document.getElementById('basicPercent').value);
+      const isMetro = document.getElementById('city').value === 'metro';
+
+      const ctc = parseFloat(ctcInput);
+      if (isNaN(ctc) || ctc <= 0) {
+        alert('Please enter a valid CTC greater than zero.');
+        return;
+      }
+
+      // Factor to extract gross salary from CTC when employer PF (12%)
+      // and gratuity (4.81%) are part of CTC. Each is applied on the basic
+      // salary. The total employer contributions are 16.81% of the basic salary.
+      const factor = 1 + 0.1681 * basicPercent;
+      const gross = ctc / factor;
+      const basic = gross * basicPercent;
+      const hra = basic * (isMetro ? 0.5 : 0.4);
+      const otherAllowances = gross - basic - hra;
+      const employerPF = 0.12 * basic;
+      const gratuity = 0.0481 * basic;
+
+      // Employee deductions
+      const employeePF = 0.12 * basic;
+      const professionalTax = 2400; // approximate annual professional tax
+      const standardDeduction = 75000;
+
+      // Taxable income under new regime
+      let taxableIncome = gross - standardDeduction;
+      if (taxableIncome < 0) taxableIncome = 0;
+
+      // Compute income tax based on FY 2025-26 new regime slabs
+      let incomeTax = 0;
+      if (taxableIncome <= 400000) {
+        incomeTax = 0;
+      } else if (taxableIncome <= 800000) {
+        incomeTax = 0.05 * (taxableIncome - 400000);
+      } else if (taxableIncome <= 1200000) {
+        incomeTax = 0.05 * (800000 - 400000) + 0.10 * (taxableIncome - 800000);
+      } else if (taxableIncome <= 1600000) {
+        incomeTax = 0.05 * 400000 + 0.10 * 400000 + 0.15 * (taxableIncome - 1200000);
+      } else if (taxableIncome <= 2000000) {
+        incomeTax = 0.05 * 400000 + 0.10 * 400000 + 0.15 * 400000 + 0.20 * (taxableIncome - 1600000);
+      } else if (taxableIncome <= 2400000) {
+        incomeTax = 0.05 * 400000 + 0.10 * 400000 + 0.15 * 400000 + 0.20 * 400000 + 0.25 * (taxableIncome - 2000000);
+      } else {
+        incomeTax = 0.05 * 400000 + 0.10 * 400000 + 0.15 * 400000 + 0.20 * 400000 + 0.25 * 400000 + 0.30 * (taxableIncome - 2400000);
+      }
+
+      // Rebate: incomes up to ₹12 lakh are eligible for a rebate of up to ₹60,000
+      if (taxableIncome <= 1200000) {
+        const rebate = Math.min(incomeTax, 60000);
+        incomeTax -= rebate;
+      }
+      // Health and education cess @4%
+      const cess = incomeTax * 0.04;
+      const totalTax = incomeTax + cess;
+
+      const totalDeductions = employeePF + professionalTax + totalTax;
+      const netSalary = gross - totalDeductions;
+
+      const monthlyGross = gross / 12;
+      const monthlyNet = netSalary / 12;
+
+      document.getElementById('results').innerHTML = `
+        <h2>Annual Breakdown</h2>
+        <p><strong>Gross Salary:</strong> ₹${formatNumber(gross)}</p>
+        <p><strong>Basic Salary:</strong> ₹${formatNumber(basic)}</p>
+        <p><strong>House Rent Allowance:</strong> ₹${formatNumber(hra)}</p>
+        <p><strong>Other Allowances:</strong> ₹${formatNumber(otherAllowances)}</p>
+        <p><strong>Employer PF Contribution:</strong> ₹${formatNumber(employerPF)}</p>
+        <p><strong>Gratuity Provision (4.81% of Basic):</strong> ₹${formatNumber(gratuity)}</p>
+        <p><strong>Employee PF Contribution:</strong> ₹${formatNumber(employeePF)}</p>
+        <p><strong>Professional Tax:</strong> ₹${formatNumber(professionalTax)}</p>
+        <p><strong>Income Tax:</strong> ₹${formatNumber(incomeTax)}</p>
+        <p><strong>Health &amp; Education Cess (4%):</strong> ₹${formatNumber(cess)}</p>
+        <p><strong>Total Deductions:</strong> ₹${formatNumber(totalDeductions)}</p>
+        <p><strong>Net (Take‑Home) Salary:</strong> ₹${formatNumber(netSalary)}</p>
+        <h2>Monthly Figures</h2>
+        <p><strong>Monthly CTC:</strong> ₹${formatNumber(ctc / 12)}</p>
+        <p><strong>Monthly Gross Salary:</strong> ₹${formatNumber(monthlyGross)}</p>
+        <p><strong>Monthly Net Salary:</strong> ₹${formatNumber(monthlyNet)}</p>
+      `;
+    }
+
+    document.getElementById('calculate').addEventListener('click', calculate);
+  </script>
+</body>
+</html>
