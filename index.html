@@ -5,29 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CTC to In-Hand Salary Calculator</title>
 <style>
-body {
-  font-family: Arial, sans-serif;
-  max-width: 800px;
-  margin: auto;
-  padding: 20px;
-}
-label {
-  display: block;
-  margin-top: 10px;
-}
-input, select {
-  width: 100%;
-  padding: 8px;
-  margin-top: 5px;
-}
-button {
-  margin-top: 15px;
-  padding: 10px 20px;
-  font-size: 16px;
-}
-#results {
-  margin-top: 20px;
-}
+body {font-family: Arial, sans-serif; max-width: 800px; margin: auto; padding: 20px;}
+label {display: block; margin-top: 10px;}
+input, select {width: 100%; padding: 8px; margin-top: 5px;}
+button {margin-top: 15px; padding: 10px 20px; font-size: 16px;}
+#results {margin-top: 20px;}
 </style>
 </head>
 <body>
@@ -46,3 +28,132 @@ button {
 <button onclick="calculate()">Calculate</button>
 <div id="results"></div>
 <script>
+function formatNumber(num) {
+  return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function calculate() {
+  const ctcInput = document.getElementById('ctc').value;
+  const basicPctInput = parseFloat(document.getElementById('basicPercent').value);
+  const pfPctInput = parseFloat(document.getElementById('pfPercent').value);
+  const city = document.getElementById('city').value;
+  const ctc = parseFloat(ctcInput);
+  if (isNaN(ctc) || ctc <= 0) {
+    alert('Please enter a valid CTC greater than zero.');
+    return;
+  }
+  if (isNaN(basicPctInput) || basicPctInput <= 0 || basicPctInput > 100) {
+    alert('Please enter a valid Basic % (0–100).');
+    return;
+  }
+  if (isNaN(pfPctInput) || pfPctInput < 0 || pfPctInput > 100) {
+    alert('Please enter a valid PF % (0–100).');
+    return;
+  }
+  const basicPct = basicPctInput / 100;
+  const pfPct = pfPctInput / 100;
+  // Factor: CTC = gross + (pfPct + 0.0481) * basic where basic = basicPct * gross
+  const factor = 1 + (pfPct + 0.0481) * basicPct;
+  const gross = ctc / factor;
+  const basic = gross * basicPct;
+  const hra = basic * (city === 'metro' ? 0.5 : 0.4);
+  const otherAllowances = gross - basic - hra;
+  const employerPF = pfPct * basic;
+  const gratuity = 0.0481 * basic;
+  // Employee deductions
+  const employeePF = pfPct * basic;
+  const professionalTax = 2400;
+  const standardDeduction = 75000;
+  let taxableIncome = gross - standardDeduction;
+  if (taxableIncome < 0) taxableIncome = 0;
+  let incomeTax = 0;
+  // tax slabs new regime FY 2025-26
+
+  if (taxableIncome > 400000) {
+    let remaining = taxableIncome - 400000;
+    // first slab at 5%
+    if (remaining <= 400000) {
+      incomeTax += remaining * 0.05;
+      remaining = 0;
+    } else {
+      incomeTax += 400000 * 0.05;
+      remaining -= 400000;
+    }
+    // second slab at 10%
+    if (remaining > 0) {
+      if (remaining <= 400000) {
+        incomeTax += remaining * 0.10;
+        remaining = 0;
+      } else {
+        incomeTax += 400000 * 0.10;
+        remaining -= 400000;
+      }
+    }
+    // third slab at 15%
+    if (remaining > 0) {
+      if (remaining <= 400000) {
+        incomeTax += remaining * 0.15;
+        remaining = 0;
+      } else {
+        incomeTax += 400000 * 0.15;
+        remaining -= 400000;
+      }
+    }
+    // fourth slab at 20%
+    if (remaining > 0) {
+      if (remaining <= 400000) {
+        incomeTax += remaining * 0.20;
+        remaining = 0;
+      } else {
+        incomeTax += 400000 * 0.20;
+        remaining -= 400000;
+      }
+    }
+    // fifth slab at 25%
+    if (remaining > 0) {
+      if (remaining <= 400000) {
+        incomeTax += remaining * 0.25;
+        remaining = 0;
+      } else {
+        incomeTax += 400000 * 0.25;
+        remaining -= 400000;
+      }
+    }
+    // final slab at 30%
+    if (remaining > 0) {
+      incomeTax += remaining * 0.30;
+    }
+    // rebate up to 60k for taxable <= 12L
+    if (taxableIncome <= 1200000) {
+      incomeTax = Math.max(0, incomeTax - 60000);
+    }
+  } else {
+    incomeTax = 0;
+  }
+  const cess = incomeTax * 0.04;
+  const totalTax = incomeTax + cess;
+  const totalDeductions = employeePF + professionalTax + totalTax;
+  const netSalary = gross - totalDeductions;
+  const monthlyGross = gross / 12;
+  const monthlyNet = netSalary / 12;
+  document.getElementById('results').innerHTML =
+    '<h2>Annual Breakdown</h2>' +
+    '<p><strong>Gross Salary:</strong> ₹' + formatNumber(gross) + '</p>' +
+    '<p><strong>Basic Salary (' + basicPctInput + '% of Gross):</strong> ₹' + formatNumber(basic) + '</p>' +
+    '<p><strong>House Rent Allowance:</strong> ₹' + formatNumber(hra) + '</p>' +
+    '<p><strong>Other Allowances:</strong> ₹' + formatNumber(otherAllowances) + '</p>' +
+    '<p><strong>Employer PF (' + pfPctInput + '% of Basic):</strong> ₹' + formatNumber(employerPF) + '</p>' +
+    '<p><strong>Gratuity (4.81% of Basic):</strong> ₹' + formatNumber(gratuity) + '</p>' +
+    '<p><strong>Employee PF (' + pfPctInput + '% of Basic):</strong> ₹' + formatNumber(employeePF) + '</p>' +
+    '<p><strong>Professional Tax:</strong> ₹' + formatNumber(professionalTax) + '</p>' +
+    '<p><strong>Income Tax:</strong> ₹' + formatNumber(incomeTax) + '</p>' +
+    '<p><strong>Health &amp; Education Cess (4%):</strong> ₹' + formatNumber(cess) + '</p>' +
+    '<p><strong>Total Deductions:</strong> ₹' + formatNumber(totalDeductions) + '</p>' +
+    '<p><strong>Net (Take-Home) Salary:</strong> ₹' + formatNumber(netSalary) + '</p>' +
+    '<h2>Monthly Figures</h2>' +
+    '<p><strong>Monthly CTC:</strong> ₹' + formatNumber(ctc / 12) + '</p>' +
+    '<p><strong>Monthly Gross Salary:</strong> ₹' + formatNumber(monthlyGross) + '</p>' +
+    '<p><strong>Monthly Net Salary:</strong> ₹' + formatNumber(monthlyNet) + '</p>';
+}
+</script>
+</body>
+</html>
